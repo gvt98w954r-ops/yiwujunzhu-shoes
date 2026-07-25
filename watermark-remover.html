@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>水印去除工具箱 — AI智能去水印</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: "Segoe UI","Microsoft YaHei",sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+.header { background: #1e293b; padding: 20px 0; text-align: center; border-bottom: 1px solid #334155; }
+.header h1 { font-size: 1.8rem; color: #38bdf8; }
+.header p { color: #94a3b8; margin-top: 4px; font-size: 0.9rem; }
+.container { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 24px; background: #1e293b; border-radius: 12px; padding: 4px; }
+.tab { flex: 1; padding: 14px; text-align: center; cursor: pointer; border-radius: 10px; font-weight: 600; font-size: 0.95rem; transition: all 0.2s; color: #94a3b8; border: none; background: transparent; font-family: inherit; }
+.tab.active { background: #0f172a; color: #38bdf8; }
+.tab:hover:not(.active) { color: #e2e8f0; }
+
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* Upload Zone */
+.upload-zone { border: 2px dashed #475569; border-radius: 16px; padding: 48px; text-align: center; cursor: pointer; transition: all 0.2s; background: #1e293b; margin-bottom: 20px; }
+.upload-zone:hover { border-color: #38bdf8; background: #1e293b; }
+.upload-zone.dragover { border-color: #38bdf8; background: #1a2744; }
+.upload-zone .icon { font-size: 3rem; margin-bottom: 12px; }
+.upload-zone p { color: #94a3b8; }
+.upload-zone .btn { display: inline-block; margin-top: 12px; padding: 10px 28px; background: #38bdf8; color: #0f172a; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; font-size: 0.95rem; font-family: inherit; }
+
+/* Editor */
+.editor { display: none; gap: 20px; }
+.editor.active { display: grid; grid-template-columns: 1fr 1fr; }
+.canvas-wrap { position: relative; background: #1e293b; border-radius: 12px; overflow: hidden; min-height: 300px; display: flex; align-items: center; justify-content: center; }
+.canvas-wrap canvas { max-width: 100%; max-height: 500px; cursor: crosshair; }
+.preview-wrap { background: #1e293b; border-radius: 12px; display: flex; align-items: center; justify-content: center; min-height: 300px; padding: 20px; }
+.preview-wrap canvas { max-width: 100%; max-height: 500px; }
+
+.toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; align-items: center; }
+.toolbar button { padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; font-size: 0.9rem; font-family: inherit; transition: all 0.2s; }
+.btn-primary { background: #38bdf8; color: #0f172a; }
+.btn-primary:hover { background: #7dd3fc; }
+.btn-danger { background: #ef4444; color: #fff; }
+.btn-danger:hover { background: #f87171; }
+.btn-outline { background: transparent; border: 1px solid #475569; color: #e2e8f0; }
+.btn-outline:hover { border-color: #38bdf8; color: #38bdf8; }
+.btn-download { background: #10b981; color: #fff; }
+.btn-download:hover { background: #34d399; }
+.brush-size { display: flex; align-items: center; gap: 8px; color: #94a3b8; font-size: 0.85rem; }
+.brush-size input { width: 100px; accent-color: #38bdf8; }
+
+/* Tools Section */
+.tools-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 20px; }
+.tool-card { background: #1e293b; border-radius: 12px; padding: 24px; border: 1px solid #334155; transition: all 0.2s; }
+.tool-card:hover { border-color: #38bdf8; }
+.tool-card h3 { color: #38bdf8; margin-bottom: 8px; font-size: 1.05rem; }
+.tool-card p { color: #94a3b8; font-size: 0.88rem; line-height: 1.6; margin-bottom: 14px; }
+.tool-card .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 600; margin-right: 4px; }
+.tag-free { background: #064e3b; color: #34d399; }
+.tag-video { background: #1e3a5f; color: #60a5fa; }
+.tag-image { background: #4a1d6e; color: #c084fc; }
+.tool-card a { display: inline-block; padding: 8px 18px; background: #38bdf8; color: #0f172a; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 0.85rem; }
+
+.message { padding: 12px 16px; border-radius: 8px; margin-top: 12px; font-size: 0.85rem; display: none; }
+.message.success { display: block; background: #064e3b; color: #34d399; border: 1px solid #065f46; }
+.message.info { display: block; background: #1e3a5f; color: #60a5fa; border: 1px solid #1e40af; }
+
+@media (max-width: 768px) {
+  .editor.active { grid-template-columns: 1fr; }
+  .tabs { flex-wrap: wrap; }
+  .tab { flex: unset; width: calc(50% - 2px); font-size: 0.82rem; padding: 10px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🛠 水印去除工具箱</h1>
+  <p>内置图片去水印 + 推荐最强免费在线工具 · 纯本地处理不上传</p>
+</div>
+
+<div class="container">
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('builtin')">🖼 图片去水印（本地）</button>
+    <button class="tab" onclick="switchTab('video')">🎬 视频去水印工具</button>
+    <button class="tab" onclick="switchTab('online')">🌐 在线去水印推荐</button>
+  </div>
+
+  <!-- ======== PANEL 1: Built-in Image Watermark Remover ======== -->
+  <div class="panel active" id="panel-builtin">
+    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+      <div class="icon">🖼</div>
+      <p>点击上传图片 或 拖拽到此处</p>
+      <p style="font-size:0.78rem;color:#64748b;margin-top:4px;">支持 JPG / PNG / WebP</p>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="loadImage(event)">
+
+    <div class="editor" id="editor">
+      <div>
+        <div class="canvas-wrap" id="canvasWrap">
+          <canvas id="mainCanvas"></canvas>
+        </div>
+        <div class="toolbar">
+          <span class="brush-size">画笔大小: <input type="range" id="brushSize" min="5" max="80" value="25" oninput="updateBrushSize()"><span id="brushSizeVal">25px</span></span>
+          <button class="btn-outline" onclick="undoMark()">↩ 撤销</button>
+          <button class="btn-danger" onclick="clearMarks()">✕ 清除标记</button>
+          <button class="btn-primary" onclick="removeWatermark()">✨ 智能去除</button>
+        </div>
+        <div class="message" id="msg"></div>
+      </div>
+      <div>
+        <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:8px;">📌 预览结果</p>
+        <div class="preview-wrap">
+          <canvas id="previewCanvas"></canvas>
+        </div>
+        <button class="btn-download" style="width:100%;margin-top:12px;" onclick="downloadResult()">⬇ 下载去水印图片</button>
+      </div>
+    </div>
+
+    <div style="background:#1e293b;border-radius:12px;padding:20px;margin-top:20px;">
+      <h3 style="color:#38bdf8;margin-bottom:8px;">📖 使用说明</h3>
+      <ol style="color:#94a3b8;line-height:2;font-size:0.9rem;padding-left:20px;">
+        <li>上传图片后，在水印区域<strong>按住鼠标涂抹</strong>标记水印位置</li>
+        <li>点击「智能去除」→ 算法自动用周围像素填充标记区域</li>
+        <li>右侧预览效果 → 满意后下载</li>
+        <li><strong>提示：</strong>涂抹范围稍大于水印，效果更好；复杂背景建议用下方在线工具</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- ======== PANEL 2: Video Watermark Remover Tools ======== -->
+  <div class="panel" id="panel-video">
+    <div class="tools-grid">
+      <div class="tool-card">
+        <span class="tag tag-free">免费</span><span class="tag tag-video">视频</span>
+        <h3>Media.io</h3>
+        <p>免费在线视频去水印，AI 自动检测并移除水印，支持 MP4/MOV/AVI。无需下载软件，浏览器直接操作。</p>
+        <a href="https://www.media.io/remove-watermark-from-video.html" target="_blank" rel="noopener">打开使用 →</a>
+      </div>
+      <div class="tool-card">
+        <span class="tag tag-free">免费</span><span class="tag tag-video">视频</span>
+        <h3>Cutout.pro</h3>
+        <p>AI 视频水印去除，自动追踪水印位置逐帧去除。支持批量处理，效果自然。</p>
+        <a href="https://www.cutout.pro/video-watermark-remover" target="_blank" rel="noopener">打开使用 →</a>
+      </div>
+      <div class="tool-card">
+        <span class="tag tag-free">免费</span><span class="tag tag-video">视频</span>
+        <h3>Vmake.ai</h3>
+        <p>免费在线视频水印去除器，AI 自动识别水印区域，智能补全背景。支持高清导出。</p>
+        <a href="https://vmake.ai/video-watermark-remover" target="_blank" rel="noopener">打开使用 →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== PANEL 3: Online Image Tools ======== -->
+  <div class="panel" id="panel-online">
+    <div class="tools-grid">
+      <div class="tool-card">
+        <span class="tag tag-free">免费</span><span class="tag tag-image">图片</span>
+        <h3>WatermarkRemover.io</h3>
+        <p>专业 AI 去水印，自动检测水印区域，一键去除。支持批量上传，效果自然。</p>
+        <a href="https://www.watermarkremover.io" target="_blank" rel="noopener">打开使用 →</a>
+      </div>
+      <div class="tool-card">
+        <span class="tag tag-free">免费</span><span class="tag tag-image">图片</span>
+        <h3>Clipdrop Cleanup</h3>
+        <p>Stability AI 出品，涂抹要去除的区域即可自动补全。AI 理解背景内容，填补效果逼真。</p>
+        <a href="https://clipdrop.co/cleanup" target="_blank" rel="noopener">打开使用 →</a>
+      </div>
+      <div class="tool-card">
+        <span class="tag tag-free">免费</span><span class="tag tag-image">图片</span>
+        <h3>Remove.bg / Cleanup</h3>
+        <p>知名去背景工具也支持去水印。上传图片 → 涂抹水印区域 → AI 自动移除并填充背景。</p>
+        <a href="https://www.remove.bg" target="_blank" rel="noopener">打开使用 →</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ============ TAB SWITCH ============
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+// ============ IMAGE WATERMARK REMOVER ============
+let img = null, marks = [], brushSize = 25;
+const mainCanvas = document.getElementById('mainCanvas');
+const mainCtx = mainCanvas.getContext('2d');
+const previewCanvas = document.getElementById('previewCanvas');
+const previewCtx = previewCanvas.getContext('2d');
+let isDrawing = false;
+
+document.getElementById('brushSize').addEventListener('input', function() {
+  brushSize = parseInt(this.value);
+  document.getElementById('brushSizeVal').textContent = brushSize + 'px';
+});
+
+// Upload
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) loadImageFromFile(file);
+});
+
+function loadImage(e) {
+  const file = e.target.files[0];
+  if (file) loadImageFromFile(file);
+}
+
+function loadImageFromFile(file) {
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    img = new Image();
+    img.onload = function() {
+      const maxW = 520, maxH = 500;
+      let w = img.width, h = img.height;
+      if (w > maxW) { h = h * (maxW / w); w = maxW; }
+      if (h > maxH) { w = w * (maxH / h); h = maxH; }
+      mainCanvas.width = w; mainCanvas.height = h;
+      previewCanvas.width = w; previewCanvas.height = h;
+      mainCtx.drawImage(img, 0, 0, w, h);
+      previewCtx.drawImage(img, 0, 0, w, h);
+      marks = [];
+      document.getElementById('editor').classList.add('active');
+      document.getElementById('uploadZone').style.display = 'none';
+      showMsg('在图片上按住鼠标涂抹水印区域，然后点击「智能去除」', 'info');
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// Drawing marks
+mainCanvas.addEventListener('mousedown', function(e) {
+  isDrawing = true;
+  drawMark(e);
+});
+mainCanvas.addEventListener('mousemove', function(e) {
+  if (isDrawing) drawMark(e);
+});
+mainCanvas.addEventListener('mouseup', () => { isDrawing = false; });
+mainCanvas.addEventListener('mouseleave', () => { isDrawing = false; });
+
+// Touch support
+mainCanvas.addEventListener('touchstart', function(e) { e.preventDefault(); isDrawing = true; drawMark(e.touches[0]); });
+mainCanvas.addEventListener('touchmove', function(e) { e.preventDefault(); if (isDrawing) drawMark(e.touches[0]); });
+mainCanvas.addEventListener('touchend', () => { isDrawing = false; });
+
+function drawMark(e) {
+  const rect = mainCanvas.getBoundingClientRect();
+  const scaleX = mainCanvas.width / rect.width;
+  const scaleY = mainCanvas.height / rect.height;
+  const x = (e.clientX - rect.left) * scaleX;
+  const y = (e.clientY - rect.top) * scaleY;
+  marks.push({ x, y, r: brushSize / 2 });
+  
+  // Draw semi-transparent red on canvas
+  mainCtx.fillStyle = 'rgba(239, 68, 68, 0.45)';
+  mainCtx.beginPath();
+  mainCtx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
+  mainCtx.fill();
+}
+
+function undoMark() {
+  if (marks.length === 0) return;
+  marks.pop();
+  redrawCanvas();
+}
+
+function clearMarks() {
+  marks = [];
+  redrawCanvas();
+}
+
+function redrawCanvas() {
+  mainCtx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+  mainCtx.drawImage(img, 0, 0, mainCanvas.width, mainCanvas.height);
+  mainCtx.fillStyle = 'rgba(239, 68, 68, 0.45)';
+  marks.forEach(m => {
+    mainCtx.beginPath();
+    mainCtx.arc(m.x, m.y, m.r, 0, Math.PI * 2);
+    mainCtx.fill();
+  });
+}
+
+// Inpainting algorithm
+function removeWatermark() {
+  if (marks.length === 0) { showMsg('请先在图片上涂抹水印区域', 'info'); return; }
+  if (!img) return;
+
+  previewCtx.drawImage(img, 0, 0, previewCanvas.width, previewCanvas.height);
+  const imageData = previewCtx.getImageData(0, 0, previewCanvas.width, previewCanvas.height);
+  const data = imageData.data;
+  const w = previewCanvas.width, h = previewCanvas.height;
+
+  // Create mask from marks
+  const mask = new Uint8Array(w * h);
+  const totalRadius = brushSize / 2 + 8; // slightly larger for better coverage
+  marks.forEach(m => {
+    const cx = Math.round(m.x), cy = Math.round(m.y);
+    for (let dy = -totalRadius; dy <= totalRadius; dy++) {
+      for (let dx = -totalRadius; dx <= totalRadius; dx++) {
+        if (dx * dx + dy * dy <= totalRadius * totalRadius) {
+          const px = cx + dx, py = cy + dy;
+          if (px >= 0 && px < w && py >= 0 && py < h) {
+            mask[py * w + px] = 1;
+          }
+        }
+      }
+    }
+  });
+
+  // Content-aware fill: for each masked pixel, sample from surrounding unmasked pixels
+  const sampleRadius = Math.max(30, totalRadius * 3);
+  const tempData = new Uint8ClampedArray(data);
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (mask[y * w + x] === 1) {
+        let rSum = 0, gSum = 0, bSum = 0, aSum = 0, count = 0;
+        
+        // Sample from surrounding unmasked pixels with distance weighting
+        for (let dy = -sampleRadius; dy <= sampleRadius; dy += 2) {
+          for (let dx = -sampleRadius; dx <= sampleRadius; dx += 2) {
+            const sx = x + dx, sy = y + dy;
+            if (sx >= 0 && sx < w && sy >= 0 && sy < h && mask[sy * w + sx] === 0) {
+              const idx = (sy * w + sx) * 4;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              const weight = 1 / (1 + dist);
+              rSum += tempData[idx] * weight;
+              gSum += tempData[idx + 1] * weight;
+              bSum += tempData[idx + 2] * weight;
+              aSum += tempData[idx + 3] * weight;
+              count += weight;
+            }
+          }
+        }
+
+        if (count > 0) {
+          const idx = (y * w + x) * 4;
+          data[idx] = Math.round(rSum / count);
+          data[idx + 1] = Math.round(gSum / count);
+          data[idx + 2] = Math.round(bSum / count);
+          data[idx + 3] = Math.round(aSum / count);
+        }
+      }
+    }
+  }
+
+  previewCtx.putImageData(imageData, 0, 0);
+
+  // Clear marks and redraw original
+  marks = [];
+  redrawCanvas();
+  showMsg('水印已去除！查看右侧预览 → 点击下载保存', 'success');
+}
+
+function downloadResult() {
+  const link = document.createElement('a');
+  link.download = 'watermark-removed.png';
+  link.href = previewCanvas.toDataURL('image/png');
+  link.click();
+}
+
+function showMsg(text, type) {
+  const msg = document.getElementById('msg');
+  msg.textContent = text;
+  msg.className = 'message ' + type;
+  setTimeout(() => { msg.className = 'message'; }, 4000);
+}
+</script>
+
+</body>
+</html>
